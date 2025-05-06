@@ -1,39 +1,5 @@
 import java.util.*;
 
-/**
- * CENG 383 – Programming Assignment 2
- * -----------------------------------
- * SpellChecker
- *
- * <p>Implements a dictionary‑based spell checker using an R‑way (26‑ary) trie.
- * Input is entirely read from <code>stdin</code>, so <strong>no extra command‑line
- * arguments or external text files are required</strong>.</p>
- *
- * <h2>Input Format</h2>
- * <ol>
- *   <li>First line – an integer <code>N</code>: number of words in the dictionary</li>
- *   <li>Next <code>N</code> tokens – dictionary words (case‑insensitive)</li>
- *   <li>Remaining tokens – query words, one per token
- *       (<code>EXIT</code> <em>in all capitals</em> terminates the program)</li>
- * </ol>
- *
- * <h2>Output Rules</h2>
- * <ul>
- *   <li>If the query exists in the dictionary → <code>Correct Word</code></li>
- *   <li>If no dictionary word starts with the same first letter →
- *       <code>No Suggestions</code></li>
- *   <li>Otherwise → <code>Misspelled?</code> followed by up to three suggestions
- *       with the longest common prefix, printed in strictly alphabetical order
- *       and separated by single spaces.</li>
- * </ul>
- *
- * <p>All operations run in time O(<i>L</i>) where <i>L</i> is the length of the
- * query, plus the number of extra nodes visited while collecting at most three
- * suggestions (bounded by a small constant in practice).</p>
- *
- * @author  <your‑name‑here>
- * @version 1.0  (May 2025)
- */
 public class SpellChecker {
 
     /* ------------------------------------------------------------
