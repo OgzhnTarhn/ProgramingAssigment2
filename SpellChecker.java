@@ -2,13 +2,9 @@ import java.util.*;
 
 public class SpellChecker {
 
-    private static class Node {
-        Node[] next = new Node[26];
-        boolean isWord;
-    }
-
     private final Node root = new Node();
     private static final int LIMIT = 3;
+
     //trie yapısına girilen kelimeyi harfleri üzerinden dolaşarak ekliyoruz
     private void insert(String w) {
         if (w.isEmpty()) return;
@@ -20,12 +16,14 @@ public class SpellChecker {
         }
         cur.isWord = true;
     }
+
     //harf dışı karakterleri temizlemek ve kalan harfleri küçük harflere çevirmek
     private static String clean(String tok) {
         StringBuilder sb = new StringBuilder();
         for (char c : tok.toCharArray()) if (Character.isLetter(c)) sb.append(Character.toLowerCase(c));
         return sb.toString();
     }
+
     //Kelimedeki harflere sırayla bakılarak trie içinde gezilir, uygun düğüm yoksa ilerleme durur
     private void handleQuery(String raw) {
         String w = clean(raw);
