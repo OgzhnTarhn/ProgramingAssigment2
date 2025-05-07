@@ -1,33 +1,35 @@
-import java.io.*;
 import java.util.*;
 
 /**
- * CENG 383 – PA‑2 ‑ Spell Checker (improved)
- * ‑ Trie‑based, case‑insensitive spell checker that prints
- *   Correct Word / No Suggestions / Misspelled? <up to 3 words>
- *   according to assignment rules.
+ * CENG 383 – PA‑2 Spell Checker (Scanner‑only version)
+ * ‑ Case‑insensitive Trie that prints
+ *    Correct Word / No Suggestions / Misspelled? <≤3 words>
+ *    exactly as assignment rules state.
  *
- *  Dictionary input formats supported:
- *  1.  N  <word1> <word2> … <wordN>   (N first, may span lines)
- *  2.  <word1> <word2> … <wordK> \n   (first line only)
+ * Supported dictionary input formats
+ *   1)  N  <word1> … <wordN>   (N first, may span lines)
+ *   2)  <word1> … <wordK>       (single‑line dictionary)
  *
- *  Queries follow the dictionary and finish with the token "EXIT".
+ * After the dictionary, every token is treated as a *query*
+ * until the sentinel EXIT appears.
+ *
+ * Uses **only java.util** (Scanner + collections).
  */
 public class SpellChecker {
-    /* ‑‑‑ Trie node ‑‑‑ */
+    /* ----- Trie node ----- */
     private static class Node {
-        Node[] next = new Node[26];   // children for 'a'…'z'
-        boolean isWord;               // end‑of‑word flag
+        Node[] next = new Node[26];  // children for 'a'…'z'
+        boolean isWord;              // end‑marker
     }
 
     private final Node root = new Node();
-    private static final int LIMIT = 3;        // max suggestions
+    private static final int LIMIT = 3; // max #suggestions
 
-    /* ---------- insert ---------- */
-    private void insert(String word) {
-        if (word.isEmpty()) return;
+    /* ----- insert word into trie ----- */
+    private void insert(String w) {
+        if (w.isEmpty()) return;
         Node cur = root;
-        for (char ch : word.toCharArray()) {
+        for (char ch : w.toCharArray()) {
             int idx = ch - 'a';
             if (cur.next[idx] == null) cur.next[idx] = new Node();
             cur = cur.next[idx];
@@ -35,54 +37,48 @@ public class SpellChecker {
         cur.isWord = true;
     }
 
-    /* ---------- clean word (letters → lowercase) ---------- */
-    private static String clean(String token) {
+    /* ----- keep letters & lowercase ----- */
+    private static String clean(String tok) {
         StringBuilder sb = new StringBuilder();
-        for (char ch : token.toCharArray()) if (Character.isLetter(ch)) sb.append(Character.toLowerCase(ch));
+        for (char c : tok.toCharArray()) if (Character.isLetter(c)) sb.append(Character.toLowerCase(c));
         return sb.toString();
     }
 
-    /* ---------- query handling ---------- */
+    /* ----- process a single query token ----- */
     private void handleQuery(String raw) {
         String w = clean(raw);
-        if (w.isEmpty()) return;                 // ignore blanks / non‑letters
+        if (w.isEmpty()) return;
 
-        // 1) Follow as far as possible in the trie keeping depth
+        // follow as far as possible, recording depth
         Node cur = root;
         int depth = 0;
         for (char ch : w.toCharArray()) {
             int idx = ch - 'a';
-            if (idx < 0 || idx >= 26 || cur.next[idx] == null) break; // path breaks
+            if (idx < 0 || idx >= 26 || cur.next[idx] == null) break;
             cur = cur.next[idx];
             depth++;
         }
 
-        // exact match ?
-        if (depth == w.length() && cur.isWord) {
+        if (depth == w.length() && cur.isWord) {            // exact hit
             System.out.println("Correct Word");
             return;
         }
-
-        // first letter absent ?
-        if (depth == 0) {
+        if (depth == 0) {                                   // no first letter
             System.out.println("No Suggestions");
             return;
         }
 
-        // 2) collect suggestions from deepest matched node
-        List<String> sugg = new ArrayList<>(LIMIT);
-        dfs(cur, new StringBuilder(w.substring(0, depth)), sugg);
-
-        if (sugg.isEmpty()) System.out.println("No Suggestions");
-        else                System.out.println("Misspelled? " + String.join(" ", sugg));
+        List<String> out = new ArrayList<>(LIMIT);
+        dfs(cur, new StringBuilder(w.substring(0, depth)), out);
+        System.out.println(out.isEmpty() ? "No Suggestions" : "Misspelled? " + String.join(" ", out));
     }
 
-    /* depth‑first lexicographic traversal (stop at LIMIT) */
-    private void dfs(Node node, StringBuilder sb, List<String> out) {
+    /* ----- lexicographic DFS limited to LIMIT results ----- */
+    private void dfs(Node n, StringBuilder sb, List<String> out) {
         if (out.size() == LIMIT) return;
-        if (node.isWord) out.add(sb.toString());
+        if (n.isWord) out.add(sb.toString());
         for (char c = 'a'; c <= 'z' && out.size() < LIMIT; c++) {
-            Node nxt = node.next[c - 'a'];
+            Node nxt = n.next[c - 'a'];
             if (nxt != null) {
                 sb.append(c);
                 dfs(nxt, sb, out);
@@ -91,48 +87,47 @@ public class SpellChecker {
         }
     }
 
-    /* ---------- main ---------- */
-    public static void main(String[] args) throws IOException {
-        SpellChecker sc = new SpellChecker();
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    /* ----- main: Scanner‑based I/O ----- */
+    public static void main(String[] args) {
+        SpellChecker sp = new SpellChecker();
+        Scanner sc = new Scanner(System.in);
 
-        /* ---- 1) read first non‑empty line ---- */
-        String line;
-        do { line = br.readLine(); } while (line != null && line.trim().isEmpty());
-        if (line == null) return;
+        /* 1) read first non‑blank line (dictionary header) */
+        String firstLine = "";
+        while (sc.hasNextLine()) {
+            firstLine = sc.nextLine().trim();
+            if (!firstLine.isEmpty()) break;               // skip blank lines
+        }
+        if (firstLine.isEmpty()) return;                   // empty input
 
-        StringTokenizer st = new StringTokenizer(line);
-        String first = st.nextToken();
+        Scanner lineScan = new Scanner(firstLine);
+        String firstTok = lineScan.next();
 
-        // --- format‑A: integer N followed by N words (may span lines) ---
-        if (first.chars().allMatch(Character::isDigit)) {
-            int N = Integer.parseInt(first);
+        // ---- Format‑A: N words ----
+        if (firstTok.chars().allMatch(Character::isDigit)) {
+            int N = Integer.parseInt(firstTok);
             int read = 0;
             while (read < N) {
-                if (!st.hasMoreTokens()) {
-                    line = br.readLine();
-                    if (line == null) break;
-                    st = new StringTokenizer(line);
-                    continue;
-                }
-                sc.insert(clean(st.nextToken()));
-                read++;
+                if (lineScan.hasNext()) {
+                    sp.insert(clean(lineScan.next()));
+                    read++;
+                } else if (sc.hasNext()) {                 // spill to next tokens
+                    sp.insert(clean(sc.next()));
+                    read++;
+                } else break;
             }
         }
-        // --- format‑B: single line dictionary ---
+        // ---- Format‑B: entire first line is dictionary ----
         else {
-            sc.insert(clean(first));
-            while (st.hasMoreTokens()) sc.insert(clean(st.nextToken()));
+            sp.insert(clean(firstTok));
+            while (lineScan.hasNext()) sp.insert(clean(lineScan.next()));
         }
 
-        /* ---- 2) remaining tokens are queries ---- */
-        while ((line = br.readLine()) != null) {
-            StringTokenizer q = new StringTokenizer(line);
-            while (q.hasMoreTokens()) {
-                String token = q.nextToken();
-                if ("EXIT".equals(token)) return;   // terminate
-                sc.handleQuery(token);
-            }
+        /* 2) every following token is a query until EXIT */
+        while (sc.hasNext()) {
+            String tok = sc.next();
+            if ("EXIT".equals(tok)) break;
+            sp.handleQuery(tok);
         }
     }
 }
