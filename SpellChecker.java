@@ -1,19 +1,31 @@
+import java.io.*;
 import java.util.*;
 
+/**
+ * CENG 383 – PA‑2 ‑ Spell Checker (improved)
+ * ‑ Trie‑based, case‑insensitive spell checker that prints
+ *   Correct Word / No Suggestions / Misspelled? <up to 3 words>
+ *   according to assignment rules.
+ *
+ *  Dictionary input formats supported:
+ *  1.  N  <word1> <word2> … <wordN>   (N first, may span lines)
+ *  2.  <word1> <word2> … <wordK> \n   (first line only)
+ *
+ *  Queries follow the dictionary and finish with the token "EXIT".
+ */
 public class SpellChecker {
-
-    /* --------------------  Trie Data Structure  -------------------- */
-
-    /** Single node of a 26‑way trie (for letters 'a'–'z'). */
+    /* ‑‑‑ Trie node ‑‑‑ */
     private static class Node {
-        Node[] next = new Node[26];      // child references
-        boolean isWord;                  // marks end‑of‑word
+        Node[] next = new Node[26];   // children for 'a'…'z'
+        boolean isWord;               // end‑of‑word flag
     }
 
-    private final Node root = new Node(); // trie root
+    private final Node root = new Node();
+    private static final int LIMIT = 3;        // max suggestions
 
-    /** Inserts a word into the trie (assumes input is lowercase a‑z). */
+    /* ---------- insert ---------- */
     private void insert(String word) {
+        if (word.isEmpty()) return;
         Node cur = root;
         for (char ch : word.toCharArray()) {
             int idx = ch - 'a';
@@ -23,125 +35,104 @@ public class SpellChecker {
         cur.isWord = true;
     }
 
-    /** Returns the node reached after following all characters of key, or null if a link is missing. */
-    private Node searchNode(String key) {
-        Node cur = root;
-        for (char ch : key.toCharArray()) {
-            int idx = ch - 'a';
-            if (idx < 0 || idx >= 26 || cur.next[idx] == null) return null; // non‑letter or missing path
-            cur = cur.next[idx];
-        }
-        return cur; // may be word or just prefix
+    /* ---------- clean word (letters → lowercase) ---------- */
+    private static String clean(String token) {
+        StringBuilder sb = new StringBuilder();
+        for (char ch : token.toCharArray()) if (Character.isLetter(ch)) sb.append(Character.toLowerCase(ch));
+        return sb.toString();
     }
 
-    /* --------------------  Spell‑check Operations  -------------------- */
+    /* ---------- query handling ---------- */
+    private void handleQuery(String raw) {
+        String w = clean(raw);
+        if (w.isEmpty()) return;                 // ignore blanks / non‑letters
 
-    /**
-     * Handles a single query: prints "Correct Word", "No Suggestions" or
-     * "Misspelled? w1 w2 w3" according to assignment rules.
-     */
-    private void handleQuery(String query) {
-        String word = query.toLowerCase();
-        Node node = searchNode(word);
+        // 1) Follow as far as possible in the trie keeping depth
+        Node cur = root;
+        int depth = 0;
+        for (char ch : w.toCharArray()) {
+            int idx = ch - 'a';
+            if (idx < 0 || idx >= 26 || cur.next[idx] == null) break; // path breaks
+            cur = cur.next[idx];
+            depth++;
+        }
 
-        // Case‑1: exact match found? (node exists & isWord flag set)
-        if (node != null && node.isWord) {
+        // exact match ?
+        if (depth == w.length() && cur.isWord) {
             System.out.println("Correct Word");
             return;
         }
 
-        // Case‑2: first letter missing in trie => no suggestions
-        if (root.next[word.charAt(0) - 'a'] == null) {
+        // first letter absent ?
+        if (depth == 0) {
             System.out.println("No Suggestions");
             return;
         }
 
-        // Case‑3: generate up to 3 suggestions with longest matching prefix
-        List<String> suggestions = collectSuggestions(node == null ? searchNode(word.substring(0, word.length() - 1)) : node, word);
+        // 2) collect suggestions from deepest matched node
+        List<String> sugg = new ArrayList<>(LIMIT);
+        dfs(cur, new StringBuilder(w.substring(0, depth)), sugg);
 
-        if (suggestions.isEmpty()) {
-            System.out.println("No Suggestions");
-        } else {
-            System.out.print("Misspelled? ");
-            for (int i = 0; i < suggestions.size(); i++) {
-                System.out.print(suggestions.get(i));
-                if (i != suggestions.size() - 1) System.out.print(' ');
-            }
-            System.out.println();
-        }
+        if (sugg.isEmpty()) System.out.println("No Suggestions");
+        else                System.out.println("Misspelled? " + String.join(" ", sugg));
     }
 
-    /** Performs DFS from start node to collect ≤3 suggestions in alphabetical order. */
-    private List<String> collectSuggestions(Node start, String prefix) {
-        List<String> result = new ArrayList<>(3);
-        if (start == null) return result;
-        dfs(start, new StringBuilder(prefix), result);
-        return result;
-    }
-
-    /** Helper DFS (lexicographic). Stops when result size reaches 3. */
+    /* depth‑first lexicographic traversal (stop at LIMIT) */
     private void dfs(Node node, StringBuilder sb, List<String> out) {
-        if (out.size() == 3) return;           // already enough suggestions
+        if (out.size() == LIMIT) return;
         if (node.isWord) out.add(sb.toString());
-        for (char c = 'a'; c <= 'z' && out.size() < 3; c++) {
-            Node next = node.next[c - 'a'];
-            if (next != null) {
+        for (char c = 'a'; c <= 'z' && out.size() < LIMIT; c++) {
+            Node nxt = node.next[c - 'a'];
+            if (nxt != null) {
                 sb.append(c);
-                dfs(next, sb, out);
+                dfs(nxt, sb, out);
                 sb.deleteCharAt(sb.length() - 1); // backtrack
             }
         }
     }
 
-    /* --------------------  Main Driver  -------------------- */
-
-    public static void main(String[] args) {
+    /* ---------- main ---------- */
+    public static void main(String[] args) throws IOException {
         SpellChecker sc = new SpellChecker();
-        Scanner in = new Scanner(System.in);
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
-        /* ---------- 1) Read dictionary ---------- */
-        if (!in.hasNext()) return; // no input
-        String firstToken = in.next();
+        /* ---- 1) read first non‑empty line ---- */
+        String line;
+        do { line = br.readLine(); } while (line != null && line.trim().isEmpty());
+        if (line == null) return;
 
-        // Detect format — integer N or word list
-        boolean firstIsInt = isInteger(firstToken);
-        if (firstIsInt) {
-            int N = Integer.parseInt(firstToken);
-            for (int i = 0; i < N && in.hasNext(); i++) {
-                sc.insert(cleanWord(in.next()));
+        StringTokenizer st = new StringTokenizer(line);
+        String first = st.nextToken();
+
+        // --- format‑A: integer N followed by N words (may span lines) ---
+        if (first.chars().allMatch(Character::isDigit)) {
+            int N = Integer.parseInt(first);
+            int read = 0;
+            while (read < N) {
+                if (!st.hasMoreTokens()) {
+                    line = br.readLine();
+                    if (line == null) break;
+                    st = new StringTokenizer(line);
+                    continue;
+                }
+                sc.insert(clean(st.nextToken()));
+                read++;
             }
-        } else {
-            // format #1: first line already contains dictionary words.
-            sc.insert(cleanWord(firstToken));
-            // consume rest of the line (dictionary words)
-            String restOfLine = in.nextLine();
-            for (String w : restOfLine.split("\\s+")) {
-                if (!w.isEmpty()) sc.insert(cleanWord(w));
+        }
+        // --- format‑B: single line dictionary ---
+        else {
+            sc.insert(clean(first));
+            while (st.hasMoreTokens()) sc.insert(clean(st.nextToken()));
+        }
+
+        /* ---- 2) remaining tokens are queries ---- */
+        while ((line = br.readLine()) != null) {
+            StringTokenizer q = new StringTokenizer(line);
+            while (q.hasMoreTokens()) {
+                String token = q.nextToken();
+                if ("EXIT".equals(token)) return;   // terminate
+                sc.handleQuery(token);
             }
         }
-
-        /* ---------- 2) Process queries until EXIT ---------- */
-        while (in.hasNext()) {
-            String query = in.next();
-            if ("EXIT".equals(query)) break;            // terminate
-            sc.handleQuery(query);
-        }
-    }
-
-    /* --------------------  Utility Methods  -------------------- */
-
-    /** Checks whether a string contains only digits (base‑10 integer). */
-    private static boolean isInteger(String s) {
-        for (int i = 0; i < s.length(); i++) if (!Character.isDigit(s.charAt(i))) return false;
-        return !s.isEmpty();
-    }
-
-    /** Normalises a token: keeps only lowercase letters a‑z. */
-    private static String cleanWord(String token) {
-        StringBuilder sb = new StringBuilder();
-        for (char ch : token.toCharArray()) {
-            if (Character.isLetter(ch)) sb.append(Character.toLowerCase(ch));
-        }
-        return sb.toString();
     }
 }
