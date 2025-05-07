@@ -9,7 +9,7 @@ public class SpellChecker {
 
     private final Node root = new Node();
     private static final int LIMIT = 3;
-
+    //trie yapısına girilen kelimeyi harfleri üzerinden dolaşarak ekliyoruz
     private void insert(String w) {
         if (w.isEmpty()) return;
         Node cur = root;
@@ -20,13 +20,13 @@ public class SpellChecker {
         }
         cur.isWord = true;
     }
-
+    //harf dışı karakterleri temizlemek ve kalan harfleri küçük harflere çevirmek
     private static String clean(String tok) {
         StringBuilder sb = new StringBuilder();
         for (char c : tok.toCharArray()) if (Character.isLetter(c)) sb.append(Character.toLowerCase(c));
         return sb.toString();
     }
-
+    //Kelimedeki harflere sırayla bakılarak trie içinde gezilir, uygun düğüm yoksa ilerleme durur
     private void handleQuery(String raw) {
         String w = clean(raw);
         if (w.isEmpty()) return;
@@ -54,6 +54,8 @@ public class SpellChecker {
         System.out.println(out.isEmpty() ? "No Suggestions" : "Misspelled? " + String.join(" ", out));
     }
 
+    //ilgili düğümdeki alt dalları gezerek isWord=true olan kelimeleri bulmak
+    //sınır 3 tane
     private void dfs(Node n, StringBuilder sb, List<String> out) {
         if (out.size() == LIMIT) return;
         if (n.isWord) out.add(sb.toString());
@@ -62,11 +64,13 @@ public class SpellChecker {
             if (nxt != null) {
                 sb.append(c);
                 dfs(nxt, sb, out);
-                sb.deleteCharAt(sb.length() - 1); // backtrack
+                sb.deleteCharAt(sb.length() - 1); // backtrack (son harfi sil)
             }
         }
     }
 
+    //ilk kelime sayı içeriyorsa, o sayı kadar kelime okur ve trie'a ekler
+    //ilk kelime sayı değilse tüm kelimeler doğrudan trie'a eklenir
     public static void main(String[] args) {
         SpellChecker sp = new SpellChecker();
         Scanner sc = new Scanner(System.in);
