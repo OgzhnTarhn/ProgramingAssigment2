@@ -49,7 +49,16 @@ public class SpellChecker {
 
         List<String> out = new ArrayList<>(LIMIT);
         dfs(cur, new StringBuilder(w.substring(0, depth)), out);
-        System.out.println(out.isEmpty() ? "No Suggestions" : "Misspelled? " + String.join(" ", out));
+        if (out.isEmpty()) {
+            System.out.println("No Suggestions");
+        } else {
+            StringBuilder result = new StringBuilder("Misspelled? ");
+            for (int i = 0; i < out.size(); i++) {
+                if (i > 0) result.append(" ");
+                result.append(out.get(i));
+            }
+            System.out.println(result.toString());
+        }
     }
 
     //ilgili düğümdeki alt dalları gezerek isWord=true olan kelimeleri bulmak
@@ -83,7 +92,15 @@ public class SpellChecker {
         Scanner lineScan = new Scanner(firstLine);
         String firstTok = lineScan.next();
 
-        if (firstTok.chars().allMatch(Character::isDigit)) {
+        boolean isAllDigits = true;
+        for (char c : firstTok.toCharArray()) {
+            if (!Character.isDigit(c)) {
+                isAllDigits = false;
+                break;
+            }
+        }
+
+        if (isAllDigits) {
             int N = Integer.parseInt(firstTok);
             int read = 0;
             while (read < N) {
