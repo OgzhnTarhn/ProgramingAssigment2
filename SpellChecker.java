@@ -11,7 +11,7 @@ public class SpellChecker {
         if (word.isEmpty()) return;
 
         Node current = root;
-        int depth = 0;
+        int depth = 0; //eşleşme sayısını tutuyor
         for (char ch : word.toCharArray()) {
             int index = ch - 'a';
             if (index < 0 || index >= 26 || current.next[index] == null) break;
@@ -53,12 +53,14 @@ public class SpellChecker {
             if (nxt != null) {
                 sb.append(c);
                 dfs(nxt, sb, out);
-                sb.deleteCharAt(sb.length() - 1); // backtrack (son harfi sil)
+                sb.deleteCharAt(sb.length() - 1); //son harfi sil bir sonraki harfe geçmek için
             }
         }
     }
 
     //trie yapısına girilen kelimeyi harfleri üzerinden dolaşarak ekliyoruz
+    //Burada yapmaya çalıştığım şey, o harfin indexini oluşturuyorum.O harf için yol yoksa yeni node oluşturuyorum.
+    //Burada isWord=True derslerde yaptığımız key vermek gibi denilebilir.Kelimenin sonunu işaret ediyor
     private void insert(String word) {
         if (word.isEmpty()) return;
         Node current = root;
@@ -94,6 +96,7 @@ public class SpellChecker {
         Scanner lineScan = new Scanner(firstLine);
         String firstTok = lineScan.next();
 
+        //İlk token rakamlardan mı oluşuyor kontrolünü yapıyoruz
         boolean isAllDigits = true;
         for (char c : firstTok.toCharArray()) {
             if (!Character.isDigit(c)) {
@@ -115,11 +118,13 @@ public class SpellChecker {
                 } else break;
             }
         }
+
         else {
             sp.insert(clean(firstTok));
             while (lineScan.hasNext()) sp.insert(clean(lineScan.next()));
         }
 
+        // Kullanıcıdan gelen sorgular işleniyor
         while (sc.hasNext()) {
             String tok = sc.next();
             if ("EXIT".equals(tok)) break;
